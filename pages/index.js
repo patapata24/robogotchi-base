@@ -1,129 +1,130 @@
-// pages/index.js
 import { useState, useEffect } from 'react';
-import Scene3D from './Scene3D';
+import { WagmiProvider, useAccount } from 'wagmi';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { OnchainKitProvider, Mint } from '@coinbase/onchainkit/mint';
+import { wagmiConfig, chain } from '../lib/baseConfig';
+import RobotSVG from '../components/RobotSVG';
+import StatsBar from '../components/StatsBar';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+);
+const queryClient = new QueryClient();
+
+// DEINE ECHTE BASE NFT ADRESSE AUS REMIX
+const MY_NFT_CONTRACT = "0xf24333da010aa47cfcd15bdfefb4345c6da12a3b";
 
 export default function Home() {
-  const [stats, setStats] = useState({ hunger: 50, happiness: 50, items: { iron: 0, crystal: 0, gold: 0 } });
-  const [showInventory, setShowInventory] = useState(false);
+  return (
+    <WagmiProvider config={wagmiConfig}>
+      <QueryClientProvider client={queryClient}>
+        <OnchainKitProvider chain={chain}>
+          <RoboGotchiApp />
+        </OnchainKitProvider>
+      </QueryClientProvider>
+    </WagmiProvider>
+  );
+}
+
+function RoboGotchiApp() {
+  const [user, setUser] = useState(null);
+  const { address, isConnected } = useAccount();
 
   useEffect(() => {
-    const saved = localStorage.getItem('robogotchi-stats');
-    if (saved) setStats(JSON.parse(saved));
+    async function load() {
+      const { data } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', 'demo')
+        .single();
+      setUser(
+        data || {
+          energy: 80,
+          temp: 30,
+          friendliness: 70,
+          state: 'normal',
+        }
+      );
+    }
+    load();
   }, []);
 
-  useEffect(() => {
-    localStorage.setItem('robogotchi-stats', JSON.stringify(stats));
-  }, [stats]);
-
-  useEffect(() => {
-    const handleKey = (e) => {
-      if (e.key === 'e' || e.key === 'E') {
-        setShowInventory(prev => !prev);
-      }
-    };
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  }, []);
+  if (!user)
+    return (
+      <div style={{ color: 'white', textAlign: 'center', paddingTop: '200px', fontSize: '28px' }}>
+        Lade deinen RoboGotchi…
+      </div>
+    );
 
   return (
-    <div style={{ position: 'relative', width: '100vw', height: '100vh', margin: 0, padding: 0, overflow: 'hidden', background: '#000' }}>
-      {/* FULLSCREEN CANVAS */}
-      <div style={{ width: '100%', height: '100%' }}>
-        <Scene3D stats={stats} setStats={setStats} />
-      </div>
+    <div style={styles.container}>
+      <div style={styles.card}>
+        <h1 style={styles.title}>RoboGotchi on Base</h1>
+        <RobotSVG state={user.state || 'normal'} height="280px" />
 
-      {/* HUD – Links oben */}
-      <div style={{ position: 'absolute', top: 20, left: 20, color: '#0ff', fontFamily: 'monospace', fontSize: 18, pointerEvents: 'none' }}>
-        <div>ROBOGOTCHI 3D</div>
-        <div style={{ marginTop: 10 }}>
-          <div>Hunger: {stats.hunger}%</div>
-          <div>Happiness: {stats.happiness}%</div>
+        <div style={styles.stats}>
+          <StatsBar label="Energy" value={Math.round(user.energy || 80)} />
+          <StatsBar label="Temp" value={Math.round(user.temp || 30)} />
+          <StatsBar label="Happiness" value={Math.round(user.friendliness || 70)} />
         </div>
-        <button
-          onClick={() => setShowInventory(true)}
-          style={{
-            marginTop: 15,
-            padding: '8px 16px',
-            background: '#0f0',
-            color: '#000',
-            border: 'none',
-            borderRadius: 8,
-            fontWeight: 'bold',
-            cursor: 'pointer',
-            pointerEvents: 'auto'
-          }}
-        >
-          Truhe öffnen (E)
-        </button>
-      </div>
 
-      {/* INVENTAR MODAL */}
-      {showInventory && (
-        <div style={{
-          position: 'absolute',
-          top: 0, left: 0, width: '100%', height: '100%',
-          background: 'rgba(0,0,0,0.9)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: '#0ff',
-          fontFamily: 'monospace',
-          fontSize: 24,
-          zIndex: 100
-        }}>
-          <h2 style={{ margin: '0 0 30px 0', color: '#0f0' }}>INVENTAR</h2>
-          <div style={{ marginBottom: 20 }}>
-            Eisen: {stats.items.iron}
-          </div>
-          <div style={{ marginBottom: 20 }}>
-            Kristall: {stats.items.crystal}
-          </div>
-          <div style={{ marginBottom: 40 }}>
-            Gold: {stats.items.gold}
-          </div>
-          <button
-            onClick={() => setShowInventory(false)}
+        <div style={styles.buttons}>
+          <button style={btn}>Laden</button>
+          <button style={btn}>Kühlen</button>
+          <button style={btn}>Update</button>
+        </div>
+
+        {/* ECHTER MINT BUTTON MIT DEINER REMIX ADRESSE */}
+        {isConnected ? (
+          <Mint
+            contractAddress={MY_NFT_CONTRACT}
+            tokenId={1}
             style={{
-              padding: '12px 24px',
-              background: '#f00',
-              color: '#fff',
+              margin: '30px auto',
+              padding: '18px 40px',
+              fontSize: '20px',
+              background: '#0052FF',
+              color: 'white',
               border: 'none',
-              borderRadius: 12,
-              fontSize: 18,
-              cursor: 'pointer'
+              borderRadius: '16px',
+              fontWeight: 'bold',
+              cursor: 'pointer',
             }}
           >
-            Schließen (E)
-          </button>
-        </div>
-      )}
+            Mint Upgrade NFT (Base)
+          </Mint>
+        ) : (
+          <w3m-connect-button />
+        )}
 
-      {/* UNTEN – Aktionen */}
-      <div style={{
-        position: 'absolute',
-        bottom: 30,
-        left: '50%',
-        transform: 'translateX(-50%)',
-        display: 'flex',
-        gap: 20
-      }}>
-        <button style={btnStyle('#ff4444')}>Füttern</button>
-        <button style={btnStyle('#44ff44')}>Spielen</button>
-        <button style={btnStyle('#4444ff')}>Schlafen</button>
+        <p style={{ marginTop: '25px', color: '#00ffcc', fontSize: '15px' }}>
+          {isConnected
+            ? `Verbunden: ${address.slice(0, 8)}...${address.slice(-6)}`
+            : 'Wallet verbinden für echtes NFT'}
+        </p>
       </div>
     </div>
   );
 }
 
-const btnStyle = (color) => ({
-  padding: '12px 24px',
-  background: color,
-  color: '#fff',
+// Styling
+const styles = {
+  container: { background: 'linear-gradient(135deg,#0a0a1f,#1a1a2e)', minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' },
+  card: { background: 'rgba(255,255,255,0.08)', backdropFilter: 'blur(12px)', borderRadius: '24px', padding: '35px', maxWidth: '440px', width: '100%', textAlign: 'center', boxShadow: '0 20px 40px rgba(0,0,0,0.6)' },
+  title: { color: '#00ffcc', fontSize: '38px', margin: '0 0 30px', textShadow: '0 0 20px rgba(0,255,204,0.5)' },
+  stats: { margin: '40px 0' },
+  buttons: { display: 'flex', flexWrap: 'wrap', gap: '14px', justifyContent: 'center', marginBottom: '30px' },
+};
+
+const btn = {
+  background: 'linear-gradient(45deg,#00ffcc,#0066ff)',
   border: 'none',
-  borderRadius: 50,
+  padding: '14px 28px',
+  borderRadius: '14px',
+  color: 'white',
   fontWeight: 'bold',
-  fontSize: 16,
+  fontSize: '17px',
   cursor: 'pointer',
-  boxShadow: '0 4px 15px rgba(0,0,0,0.3)'
-});
+};
